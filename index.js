@@ -11,13 +11,13 @@ const {
 require("dotenv").config();
 
 const app = express();
+
 const port = process.env.PORT || 5000;
 
 app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-frontend-domain.vercel.app",
     ],
     credentials: true,
   })
@@ -26,7 +26,11 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t7vxma3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0&tls=true`;
+
+
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t7vxma3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
+
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -38,8 +42,12 @@ const client = new MongoClient(uri, {
 
 
 
-// JWT VERIFY MIDDLEWARE
-const verifyToken = (req, res, next) => {
+// JWT VERIFY
+const verifyToken = (
+  req,
+  res,
+  next
+) => {
 
   const token = req.cookies.token;
 
@@ -52,11 +60,15 @@ const verifyToken = (req, res, next) => {
   jwt.verify(
     token,
     process.env.JWT_SECRET,
-    (error, decoded) => {
+    (
+      error,
+      decoded
+    ) => {
 
       if (error) {
         return res.status(401).send({
-          message: "Unauthorized Access",
+          message:
+            "Unauthorized Access",
         });
       }
 
@@ -73,9 +85,8 @@ async function run() {
 
   try {
 
-    await client.connect();
-
-    const database = client.db("drivefleetDB");
+    const database =
+      client.db("drivefleetDB");
 
     const carsCollection =
       database.collection("cars");
@@ -85,64 +96,103 @@ async function run() {
 
 
 
-    // HOME ROUTE
-    app.get("/", (req, res) => {
-      res.send("Server is running");
-    });
+    // HOME
+    app.get(
+      "/",
+      async (req, res) => {
+
+        res.send(
+          "Server is running"
+        );
+      }
+    );
 
 
 
-    // JWT TOKEN CREATE
-    app.post("/jwt", async (req, res) => {
+    // JWT
+    app.post(
+      "/jwt",
+      async (req, res) => {
 
-      const user = req.body;
+        const user = req.body;
 
-      const token = jwt.sign(
-        user,
-        process.env.JWT_SECRET,
-        {
-          expiresIn: "7d",
-        }
-      );
+        const token = jwt.sign(
+          user,
+          process.env.JWT_SECRET,
+          {
+            expiresIn: "7d",
+          }
+        );
 
-      res
-        .cookie("token", token, {
-          httpOnly: true,
-          secure:
-            process.env.NODE_ENV ===
-            "production",
-          sameSite:
-            process.env.NODE_ENV ===
-            "production"
-              ? "none"
-              : "strict",
-        })
-        .send({
-          success: true,
-        });
-    });
+        res
+          .cookie(
+            "token",
+            token,
+            {
+              httpOnly: true,
+              secure:
+                process.env
+                  .NODE_ENV ===
+                "production",
+              sameSite:
+                process.env
+                  .NODE_ENV ===
+                "production"
+                  ? "none"
+                  : "strict",
+            }
+          )
+          .send({
+            success: true,
+          });
+      }
+    );
 
 
 
     // LOGOUT
-    app.post("/logout", async (req, res) => {
+    app.post(
+      "/logout",
+      async (req, res) => {
 
-      res
-        .clearCookie("token", {
-          httpOnly: true,
-          secure:
-            process.env.NODE_ENV ===
-            "production",
-          sameSite:
-            process.env.NODE_ENV ===
-            "production"
-              ? "none"
-              : "strict",
-        })
-        .send({
-          success: true,
-        });
-    });
+        res
+          .clearCookie(
+            "token",
+            {
+              httpOnly: true,
+              secure:
+                process.env
+                  .NODE_ENV ===
+                "production",
+              sameSite:
+                process.env
+                  .NODE_ENV ===
+                "production"
+                  ? "none"
+                  : "strict",
+            }
+          )
+          .send({
+            success: true,
+          });
+      }
+    );
+
+
+
+    // GET CARS
+    app.get(
+      "/cars",
+      async (req, res) => {
+
+        const result =
+          await carsCollection
+            .find()
+            .toArray();
+
+        res.send(result);
+      }
+    );
 
 
 
@@ -152,10 +202,13 @@ async function run() {
       verifyToken,
       async (req, res) => {
 
-        const newCar = req.body;
+        const car =
+          req.body;
 
         const result =
-          await carsCollection.insertOne(newCar);
+          await carsCollection.insertOne(
+            car
+          );
 
         res.send(result);
       }
@@ -163,31 +216,23 @@ async function run() {
 
 
 
-    // GET ALL CARS
-    app.get("/cars", async (req, res) => {
-
-      const result = await carsCollection
-        .find()
-        .toArray();
-
-      res.send(result);
-    });
-
-
-
-    // GET SINGLE CAR DETAILS
+    // CAR DETAILS
     app.get(
       "/cars/:id",
       async (req, res) => {
 
-        const id = req.params.id;
+        const id =
+          req.params.id;
 
         const query = {
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         };
 
         const result =
-          await carsCollection.findOne(query);
+          await carsCollection.findOne(
+            query
+          );
 
         res.send(result);
       }
@@ -195,16 +240,18 @@ async function run() {
 
 
 
-    // MY ADDED CARS
+    // MY CARS
     app.get(
       "/my-cars/:email",
       verifyToken,
       async (req, res) => {
 
-        const email = req.params.email;
+        const email =
+          req.params.email;
 
         const query = {
-          userEmail: email,
+          userEmail:
+            email,
         };
 
         const result =
@@ -224,16 +271,20 @@ async function run() {
       verifyToken,
       async (req, res) => {
 
-        const id = req.params.id;
+        const id =
+          req.params.id;
 
-        const updatedCar = req.body;
+        const updatedData =
+          req.body;
 
         const query = {
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         };
 
         const updatedDoc = {
-          $set: updatedCar,
+          $set:
+            updatedData,
         };
 
         const result =
@@ -254,14 +305,18 @@ async function run() {
       verifyToken,
       async (req, res) => {
 
-        const id = req.params.id;
+        const id =
+          req.params.id;
 
         const query = {
-          _id: new ObjectId(id),
+          _id:
+            new ObjectId(id),
         };
 
         const result =
-          await carsCollection.deleteOne(query);
+          await carsCollection.deleteOne(
+            query
+          );
 
         res.send(result);
       }
@@ -269,34 +324,32 @@ async function run() {
 
 
 
-    // BOOK A CAR
+    // BOOK CAR
     app.post(
       "/bookings",
       verifyToken,
       async (req, res) => {
 
-        const bookingData = req.body;
+        const booking =
+          req.body;
 
         const result =
           await bookingsCollection.insertOne(
-            bookingData
+            booking
           );
 
-        const filter = {
-          _id: new ObjectId(
-            bookingData.carId
-          ),
-        };
-
-        const updatedDoc = {
-          $inc: {
-            booking_count: 1,
-          },
-        };
-
         await carsCollection.updateOne(
-          filter,
-          updatedDoc
+          {
+            _id:
+              new ObjectId(
+                booking.carId
+              ),
+          },
+          {
+            $inc: {
+              booking_count: 1,
+            },
+          }
         );
 
         res.send(result);
@@ -311,10 +364,12 @@ async function run() {
       verifyToken,
       async (req, res) => {
 
-        const email = req.params.email;
+        const email =
+          req.params.email;
 
         const query = {
-          userEmail: email,
+          userEmail:
+            email,
         };
 
         const result =
@@ -328,7 +383,7 @@ async function run() {
 
 
 
-    // SEARCH AND FILTER CARS
+    // SEARCH
     app.get(
       "/search-cars",
       async (req, res) => {
@@ -343,13 +398,16 @@ async function run() {
 
         if (search) {
           query.carName = {
-            $regex: search,
-            $options: "i",
+            $regex:
+              search,
+            $options:
+              "i",
           };
         }
 
         if (type) {
-          query.carType = type;
+          query.carType =
+            type;
         }
 
         const result =
@@ -363,23 +421,9 @@ async function run() {
 
 
 
-    // PRIVATE ROUTE TEST
-    app.get(
-      "/private",
-      verifyToken,
-      async (req, res) => {
-
-        res.send({
-          success: true,
-          message:
-            "Private Route Access Success",
-        });
-      }
+    console.log(
+      "MongoDB Connected"
     );
-
-
-
-    console.log("MongoDB Connected");
 
   } finally {
 
@@ -388,6 +432,18 @@ async function run() {
 
 run().catch(console.dir);
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+
+
+app.listen(
+  port,
+  () => {
+
+    console.log(
+      `Server running on port ${port}`
+    );
+  }
+);
+
+
+
+module.exports = app;
