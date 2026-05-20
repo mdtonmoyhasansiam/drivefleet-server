@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
 require("dotenv").config();
@@ -28,7 +29,39 @@ const client = new MongoClient(uri, {
   },
 });
 
+
+// JWT VERIFY MIDDLEWARE
+const verifyToken = (req, res, next) => {
+
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).send({
+      message: "Unauthorized Access",
+    });
+  }
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET,
+    (error, decoded) => {
+
+      if (error) {
+        return res.status(401).send({
+          message: "Unauthorized Access",
+        });
+      }
+
+      req.decoded = decoded;
+
+      next();
+    }
+  );
+};
+
+
 async function run() {
+
   try {
 
     await client.connect();
@@ -41,17 +74,83 @@ async function run() {
     const bookingsCollection =
       database.collection("bookings");
 
+
+
+    // HOME ROUTE
     app.get("/", (req, res) => {
       res.send("Server is running");
     });
 
+
+
+    // JWT TOKEN CREATE
+    app.post("/jwt", async (req, res) => {
+
+      const user = req.body;
+
+      const token = jwt.sign(
+        user,
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
+
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: false,
+          sameSite: "strict",
+        })
+        .send({
+          success: true,
+        });
+    });
+
+
+
+    // LOGOUT
+    app.post("/logout", async (req, res) => {
+
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: false,
+          sameSite: "strict",
+        })
+        .send({
+          success: true,
+        });
+    });
+
+
+
+    // GET ALL CARS
     app.get("/cars", async (req, res) => {
+
       const result = await carsCollection
         .find()
         .toArray();
 
       res.send(result);
     });
+
+
+
+    // PRIVATE ROUTE TEST
+    app.get(
+      "/private",
+      verifyToken,
+      async (req, res) => {
+
+        res.send({
+          success: true,
+          message: "Private Route Access Success",
+        });
+      }
+    );
+
+
 
     console.log("MongoDB Connected");
 
