@@ -15,7 +15,10 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ["http://localhost:3000"],
+    origin: [
+      "http://localhost:3000",
+      "https://your-frontend-domain.vercel.app",
+    ],
     credentials: true,
   })
 );
@@ -105,8 +108,14 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: false,
-          sameSite: "strict",
+          secure:
+            process.env.NODE_ENV ===
+            "production",
+          sameSite:
+            process.env.NODE_ENV ===
+            "production"
+              ? "none"
+              : "strict",
         })
         .send({
           success: true,
@@ -121,8 +130,14 @@ async function run() {
       res
         .clearCookie("token", {
           httpOnly: true,
-          secure: false,
-          sameSite: "strict",
+          secure:
+            process.env.NODE_ENV ===
+            "production",
+          sameSite:
+            process.env.NODE_ENV ===
+            "production"
+              ? "none"
+              : "strict",
         })
         .send({
           success: true,
