@@ -2,7 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const {
+  MongoClient,
+  ServerApiVersion,
+  ObjectId,
+} = require("mongodb");
 
 require("dotenv").config();
 
@@ -28,6 +32,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 
 
 // JWT VERIFY MIDDLEWARE
@@ -58,6 +63,7 @@ const verifyToken = (req, res, next) => {
     }
   );
 };
+
 
 
 async function run() {
@@ -125,6 +131,23 @@ async function run() {
 
 
 
+    // ADD CAR
+    app.post(
+      "/add-car",
+      verifyToken,
+      async (req, res) => {
+
+        const newCar = req.body;
+
+        const result =
+          await carsCollection.insertOne(newCar);
+
+        res.send(result);
+      }
+    );
+
+
+
     // GET ALL CARS
     app.get("/cars", async (req, res) => {
 
@@ -137,6 +160,194 @@ async function run() {
 
 
 
+    // GET SINGLE CAR DETAILS
+    app.get(
+      "/cars/:id",
+      async (req, res) => {
+
+        const id = req.params.id;
+
+        const query = {
+          _id: new ObjectId(id),
+        };
+
+        const result =
+          await carsCollection.findOne(query);
+
+        res.send(result);
+      }
+    );
+
+
+
+    // MY ADDED CARS
+    app.get(
+      "/my-cars/:email",
+      verifyToken,
+      async (req, res) => {
+
+        const email = req.params.email;
+
+        const query = {
+          userEmail: email,
+        };
+
+        const result =
+          await carsCollection
+            .find(query)
+            .toArray();
+
+        res.send(result);
+      }
+    );
+
+
+
+    // UPDATE CAR
+    app.put(
+      "/update-car/:id",
+      verifyToken,
+      async (req, res) => {
+
+        const id = req.params.id;
+
+        const updatedCar = req.body;
+
+        const query = {
+          _id: new ObjectId(id),
+        };
+
+        const updatedDoc = {
+          $set: updatedCar,
+        };
+
+        const result =
+          await carsCollection.updateOne(
+            query,
+            updatedDoc
+          );
+
+        res.send(result);
+      }
+    );
+
+
+
+    // DELETE CAR
+    app.delete(
+      "/delete-car/:id",
+      verifyToken,
+      async (req, res) => {
+
+        const id = req.params.id;
+
+        const query = {
+          _id: new ObjectId(id),
+        };
+
+        const result =
+          await carsCollection.deleteOne(query);
+
+        res.send(result);
+      }
+    );
+
+
+
+    // BOOK A CAR
+    app.post(
+      "/bookings",
+      verifyToken,
+      async (req, res) => {
+
+        const bookingData = req.body;
+
+        const result =
+          await bookingsCollection.insertOne(
+            bookingData
+          );
+
+        const filter = {
+          _id: new ObjectId(
+            bookingData.carId
+          ),
+        };
+
+        const updatedDoc = {
+          $inc: {
+            booking_count: 1,
+          },
+        };
+
+        await carsCollection.updateOne(
+          filter,
+          updatedDoc
+        );
+
+        res.send(result);
+      }
+    );
+
+
+
+    // MY BOOKINGS
+    app.get(
+      "/my-bookings/:email",
+      verifyToken,
+      async (req, res) => {
+
+        const email = req.params.email;
+
+        const query = {
+          userEmail: email,
+        };
+
+        const result =
+          await bookingsCollection
+            .find(query)
+            .toArray();
+
+        res.send(result);
+      }
+    );
+
+
+
+    // SEARCH AND FILTER CARS
+    app.get(
+      "/search-cars",
+      async (req, res) => {
+
+        const search =
+          req.query.search || "";
+
+        const type =
+          req.query.type || "";
+
+        let query = {};
+
+        if (search) {
+          query.carName = {
+            $regex: search,
+            $options: "i",
+          };
+        }
+
+        if (type) {
+          query.carType = type;
+        }
+
+        const result =
+          await carsCollection
+            .find(query)
+            .toArray();
+
+        res.send(result);
+      }
+    );
+
+
+
     // PRIVATE ROUTE TEST
     app.get(
       "/private",
@@ -145,7 +356,8 @@ async function run() {
 
         res.send({
           success: true,
-          message: "Private Route Access Success",
+          message:
+            "Private Route Access Success",
         });
       }
     );
