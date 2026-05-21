@@ -12,7 +12,10 @@ require("dotenv").config();
 
 const app = express();
 
-const port = process.env.PORT || 5000;
+const port =
+  process.env.PORT || 5000;
+
+
 
 app.use(
   cors({
@@ -24,6 +27,7 @@ app.use(
 );
 
 app.use(express.json());
+
 app.use(cookieParser());
 
 
@@ -32,13 +36,17 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 
 
 
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
+const client = new MongoClient(
+  uri,
+  {
+    serverApi: {
+      version:
+        ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+  }
+);
 
 
 
@@ -49,11 +57,14 @@ const verifyToken = (
   next
 ) => {
 
-  const token = req.cookies.token;
+  const token =
+    req.cookies.token;
 
   if (!token) {
+
     return res.status(401).send({
-      message: "Unauthorized Access",
+      message:
+        "Unauthorized Access",
     });
   }
 
@@ -66,13 +77,15 @@ const verifyToken = (
     ) => {
 
       if (error) {
+
         return res.status(401).send({
           message:
             "Unauthorized Access",
         });
       }
 
-      req.decoded = decoded;
+      req.decoded =
+        decoded;
 
       next();
     }
@@ -85,21 +98,32 @@ async function run() {
 
   try {
 
+    await client.connect();
+
     const database =
-      client.db("drivefleetDB");
+      client.db(
+        "drivefleetDB"
+      );
 
     const carsCollection =
-      database.collection("cars");
+      database.collection(
+        "cars"
+      );
 
     const bookingsCollection =
-      database.collection("bookings");
+      database.collection(
+        "bookings"
+      );
 
 
 
     // HOME
     app.get(
       "/",
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         res.send(
           "Server is running"
@@ -112,17 +136,23 @@ async function run() {
     // JWT
     app.post(
       "/jwt",
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
-        const user = req.body;
+        const user =
+          req.body;
 
-        const token = jwt.sign(
-          user,
-          process.env.JWT_SECRET,
-          {
-            expiresIn: "7d",
-          }
-        );
+        const token =
+          jwt.sign(
+            user,
+            process.env.JWT_SECRET,
+            {
+              expiresIn:
+                "7d",
+            }
+          );
 
         res
           .cookie(
@@ -130,16 +160,18 @@ async function run() {
             token,
             {
               httpOnly: true,
+
               secure:
                 process.env
                   .NODE_ENV ===
                 "production",
+
               sameSite:
                 process.env
                   .NODE_ENV ===
                 "production"
                   ? "none"
-                  : "strict",
+                  : "lax",
             }
           )
           .send({
@@ -153,23 +185,28 @@ async function run() {
     // LOGOUT
     app.post(
       "/logout",
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         res
           .clearCookie(
             "token",
             {
               httpOnly: true,
+
               secure:
                 process.env
                   .NODE_ENV ===
                 "production",
+
               sameSite:
                 process.env
                   .NODE_ENV ===
                 "production"
                   ? "none"
-                  : "strict",
+                  : "lax",
             }
           )
           .send({
@@ -180,17 +217,41 @@ async function run() {
 
 
 
+    // PRIVATE ROUTE
+    app.get(
+      "/private",
+      verifyToken,
+      async (
+        req,
+        res
+      ) => {
+
+        res.send({
+          success: true,
+          message:
+            "Private Route Access Success",
+        });
+      }
+    );
+
+
+
     // GET CARS
     app.get(
       "/cars",
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const result =
           await carsCollection
             .find()
             .toArray();
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -200,7 +261,10 @@ async function run() {
     app.post(
       "/add-car",
       verifyToken,
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const car =
           req.body;
@@ -210,7 +274,9 @@ async function run() {
             car
           );
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -219,14 +285,19 @@ async function run() {
     // CAR DETAILS
     app.get(
       "/cars/:id",
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const id =
           req.params.id;
 
         const query = {
           _id:
-            new ObjectId(id),
+            new ObjectId(
+              id
+            ),
         };
 
         const result =
@@ -234,7 +305,9 @@ async function run() {
             query
           );
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -244,7 +317,10 @@ async function run() {
     app.get(
       "/my-cars/:email",
       verifyToken,
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const email =
           req.params.email;
@@ -259,7 +335,9 @@ async function run() {
             .find(query)
             .toArray();
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -269,7 +347,10 @@ async function run() {
     app.put(
       "/update-car/:id",
       verifyToken,
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const id =
           req.params.id;
@@ -279,13 +360,16 @@ async function run() {
 
         const query = {
           _id:
-            new ObjectId(id),
+            new ObjectId(
+              id
+            ),
         };
 
-        const updatedDoc = {
-          $set:
-            updatedData,
-        };
+        const updatedDoc =
+          {
+            $set:
+              updatedData,
+          };
 
         const result =
           await carsCollection.updateOne(
@@ -293,7 +377,9 @@ async function run() {
             updatedDoc
           );
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -303,14 +389,19 @@ async function run() {
     app.delete(
       "/delete-car/:id",
       verifyToken,
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const id =
           req.params.id;
 
         const query = {
           _id:
-            new ObjectId(id),
+            new ObjectId(
+              id
+            ),
         };
 
         const result =
@@ -318,7 +409,9 @@ async function run() {
             query
           );
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -328,7 +421,10 @@ async function run() {
     app.post(
       "/bookings",
       verifyToken,
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const booking =
           req.body;
@@ -352,7 +448,9 @@ async function run() {
           }
         );
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -362,7 +460,10 @@ async function run() {
     app.get(
       "/my-bookings/:email",
       verifyToken,
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const email =
           req.params.email;
@@ -377,7 +478,9 @@ async function run() {
             .find(query)
             .toArray();
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -386,26 +489,34 @@ async function run() {
     // SEARCH
     app.get(
       "/search-cars",
-      async (req, res) => {
+      async (
+        req,
+        res
+      ) => {
 
         const search =
-          req.query.search || "";
+          req.query
+            .search || "";
 
         const type =
-          req.query.type || "";
+          req.query.type ||
+          "";
 
         let query = {};
 
         if (search) {
-          query.carName = {
-            $regex:
-              search,
-            $options:
-              "i",
-          };
+
+          query.carName =
+            {
+              $regex:
+                search,
+              $options:
+                "i",
+            };
         }
 
         if (type) {
+
           query.carType =
             type;
         }
@@ -415,7 +526,9 @@ async function run() {
             .find(query)
             .toArray();
 
-        res.send(result);
+        res.send(
+          result
+        );
       }
     );
 
@@ -430,7 +543,9 @@ async function run() {
   }
 }
 
-run().catch(console.dir);
+run().catch(
+  console.dir
+);
 
 
 
