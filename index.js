@@ -33,7 +33,7 @@ app.use(cookieParser());
 
 
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t7vxma3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.mongodb.net/drivefleetDB?retryWrites=true&w=majority&appName=Cluster0`;
 
 
 
