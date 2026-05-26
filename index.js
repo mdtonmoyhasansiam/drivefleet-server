@@ -231,6 +231,11 @@ async function run() {
         "bookings"
       );
 
+    const usersCollection =
+      database.collection(
+        "users"
+      );
+
     // ======================================
     // HOME
     // ======================================
@@ -242,6 +247,144 @@ async function run() {
         res.send(
           "Server is running"
         );
+      }
+    );
+
+    // ======================================
+    // REGISTER USER
+    // ======================================
+
+    app.post(
+      "/register",
+
+      async (req, res) => {
+
+        try {
+
+          const {
+            name,
+            email,
+            password,
+            photo,
+          } = req.body;
+
+          const existingUser =
+            await usersCollection.findOne({
+              email,
+            });
+
+          if (existingUser) {
+
+            return res.status(400).send({
+              message:
+                "User already exists",
+            });
+          }
+
+          const user = {
+            name,
+            email,
+            photo,
+            password,
+          };
+
+          await usersCollection.insertOne(
+            user
+          );
+
+          res.send({
+            success: true,
+            message:
+              "Registration Successful",
+          });
+
+        } catch (error) {
+
+          console.log(error);
+
+          res.status(500).send({
+            message:
+              "Registration Failed",
+          });
+        }
+      }
+    );
+
+    // ======================================
+    // LOGIN USER
+    // ======================================
+
+    app.post(
+      "/login",
+
+      async (req, res) => {
+
+        try {
+
+          const {
+            email,
+            password,
+          } = req.body;
+
+          const user =
+            await usersCollection.findOne({
+              email,
+            });
+
+          if (!user) {
+
+            return res.status(401).send({
+              message:
+                "Invalid Email",
+            });
+          }
+
+          if (
+            user.password !==
+            password
+          ) {
+
+            return res.status(401).send({
+              message:
+                "Invalid Password",
+            });
+          }
+
+          const token =
+            jwt.sign(
+              {
+                email:
+                  user.email,
+
+                displayName:
+                  user.name,
+
+                photoURL:
+                  user.photo,
+              },
+
+              process.env.JWT_SECRET,
+
+              {
+                expiresIn:
+                  "7d",
+              }
+            );
+
+          res.send({
+            success: true,
+            token,
+          });
+
+        } catch (error) {
+
+          console.log(error);
+
+          res.status(500).send({
+            message:
+              "Login Failed",
+          });
+        }
       }
     );
 
@@ -290,8 +433,19 @@ async function run() {
 
         const token =
           jwt.sign(
-            user,
+            {
+              email:
+                user.email,
+
+              displayName:
+                user.name,
+
+              photoURL:
+                user.image,
+            },
+
             process.env.JWT_SECRET,
+
             {
               expiresIn:
                 "7d",
