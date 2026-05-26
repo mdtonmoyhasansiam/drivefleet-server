@@ -428,33 +428,70 @@ async function run() {
         res
       ) => {
 
-        const user =
-          req.user;
+        try {
 
-        const token =
-          jwt.sign(
-            {
+          const user =
+            req.user;
+
+          // CHECK USER
+
+          const existingUser =
+            await usersCollection.findOne({
+              email:
+                user.email,
+            });
+
+          // SAVE USER IF NOT EXISTS
+
+          if (!existingUser) {
+
+            await usersCollection.insertOne({
+              name:
+                user.name,
+
               email:
                 user.email,
 
-              displayName:
-                user.name,
-
-              photoURL:
+              photo:
                 user.image,
-            },
+            });
+          }
 
-            process.env.JWT_SECRET,
+          // JWT TOKEN
 
-            {
-              expiresIn:
-                "7d",
-            }
+          const token =
+            jwt.sign(
+              {
+                email:
+                  user.email,
+
+                displayName:
+                  user.name,
+
+                photoURL:
+                  user.image,
+              },
+
+              process.env.JWT_SECRET,
+
+              {
+                expiresIn:
+                  "7d",
+              }
+            );
+
+          res.redirect(
+            `${process.env.CLIENT_URL}/social-login?token=${token}`
           );
 
-        res.redirect(
-          `${process.env.CLIENT_URL}/social-login?token=${token}`
-        );
+        } catch (error) {
+
+          console.log(error);
+
+          res.redirect(
+            `${process.env.CLIENT_URL}/login`
+          );
+        }
       }
     );
 
@@ -629,6 +666,17 @@ async function run() {
 
           const email =
             req.params.email;
+
+          if (
+            req.decoded.email !==
+            email
+          ) {
+
+            return res.status(403).send({
+              message:
+                "Forbidden Access",
+            });
+          }
 
           const query = {
             userEmail:
@@ -824,6 +872,17 @@ async function run() {
 
           const email =
             req.params.email;
+
+          if (
+            req.decoded.email !==
+            email
+          ) {
+
+            return res.status(403).send({
+              message:
+                "Forbidden Access",
+            });
+          }
 
           const query = {
             userEmail:
