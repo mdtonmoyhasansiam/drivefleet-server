@@ -1,7 +1,20 @@
 const express = require("express");
+
 const cors = require("cors");
-const cookieParser = require("cookie-parser");
+
+const cookieParser =
+  require("cookie-parser");
+
 const jwt = require("jsonwebtoken");
+
+const passport =
+  require("passport");
+
+const GoogleStrategy =
+  require("passport-google-oauth20").Strategy;
+
+const session =
+  require("express-session");
 
 const {
   MongoClient,
@@ -13,7 +26,8 @@ require("dotenv").config();
 
 const app = express();
 
-const port = process.env.PORT || 5000;
+const port =
+  process.env.PORT || 5000;
 
 // ======================================
 // CORS CONFIG
@@ -24,55 +38,160 @@ const corsOptions = {
     "http://localhost:3000",
     "https://drivefleet-rouge.vercel.app",
   ],
+
   credentials: true,
 };
 
 app.use(cors(corsOptions));
 
-app.options("*", cors(corsOptions));
+app.options(
+  "*",
+  cors(corsOptions)
+);
 
 app.use(express.json());
 
 app.use(cookieParser());
 
+app.use(
+  session({
+    secret:
+      "drivefleet_secret",
+
+    resave: false,
+
+    saveUninitialized: true,
+  })
+);
+
+app.use(
+  passport.initialize()
+);
+
+app.use(
+  passport.session()
+);
+
 // ======================================
 // MONGODB URI
 // ======================================
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t7vxma3.mongodb.net/drivefleetDB?retryWrites=true&w=majority&appName=Cluster0`;
+const uri =
+  `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t7vxma3.mongodb.net/drivefleetDB?retryWrites=true&w=majority&appName=Cluster0`;
 
 // ======================================
 // MONGODB CLIENT
 // ======================================
 
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
+const client =
+  new MongoClient(uri, {
+    serverApi: {
+      version:
+        ServerApiVersion.v1,
+
+      strict: true,
+
+      deprecationErrors: true,
+    },
+  });
+
+// ======================================
+// GOOGLE OAUTH
+// ======================================
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID:
+        process.env
+          .GOOGLE_CLIENT_ID,
+
+      clientSecret:
+        process.env
+          .GOOGLE_CLIENT_SECRET,
+
+      callbackURL:
+        process.env.NODE_ENV ===
+        "production"
+          ? "https://drivefleet-server-zqxb.onrender.com/auth/google/callback"
+          : "http://localhost:5000/auth/google/callback",
+    },
+
+    async (
+      accessToken,
+      refreshToken,
+      profile,
+      done
+    ) => {
+
+      const user = {
+        name:
+          profile.displayName,
+
+        email:
+          profile.emails[0]
+            .value,
+
+        image:
+          profile.photos[0]
+            .value,
+      };
+
+      return done(
+        null,
+        user
+      );
+    }
+  )
+);
+
+passport.serializeUser(
+  (user, done) => {
+    done(null, user);
+  }
+);
+
+passport.deserializeUser(
+  (user, done) => {
+    done(null, user);
+  }
+);
 
 // ======================================
 // JWT VERIFY
 // ======================================
 
-const verifyToken = (req, res, next) => {
-  const token = req.cookies.token;
+const verifyToken = (
+  req,
+  res,
+  next
+) => {
 
-  if (!token) {
+  const authHeader =
+    req.headers.authorization;
+
+  if (!authHeader) {
+
     return res.status(401).send({
-      message: "Unauthorized Access",
+      message:
+        "Unauthorized Access",
     });
   }
+
+  const token =
+    authHeader.split(" ")[1];
 
   jwt.verify(
     token,
     process.env.JWT_SECRET,
+
     (error, decoded) => {
+
       if (error) {
+
         return res.status(401).send({
-          message: "Unauthorized Access",
+          message:
+            "Unauthorized Access",
         });
       }
 
@@ -88,121 +207,102 @@ const verifyToken = (req, res, next) => {
 // ======================================
 
 async function run() {
+
   try {
+
     await client.connect();
 
-    console.log("MongoDB Connected");
+    console.log(
+      "MongoDB Connected"
+    );
 
     const database =
-      client.db("drivefleetDB");
+      client.db(
+        "drivefleetDB"
+      );
 
     const carsCollection =
-      database.collection("cars");
+      database.collection(
+        "cars"
+      );
 
     const bookingsCollection =
-      database.collection("bookings");
+      database.collection(
+        "bookings"
+      );
 
     // ======================================
     // HOME
     // ======================================
 
-    app.get("/", async (req, res) => {
-      res.send("Server is running");
-    });
-
-    // ======================================
-    // JWT
-    // ======================================
-
-    app.post("/jwt", async (req, res) => {
-      const user = req.body;
-
-      const token = jwt.sign(
-        user,
-        process.env.JWT_SECRET,
-        {
-          expiresIn: "7d",
-        }
-      );
-
-      res
-        .cookie("token", token, {
-          httpOnly: true,
-
-          secure:
-            process.env.NODE_ENV ===
-            "production",
-
-          sameSite:
-            process.env.NODE_ENV ===
-            "production"
-              ? "none"
-              : "lax",
-        })
-        .send({
-          success: true,
-        });
-    });
-
-    // ======================================
-    // LOGOUT
-    // ======================================
-
-    app.post("/logout", async (req, res) => {
-      res
-        .clearCookie("token", {
-          httpOnly: true,
-
-          secure:
-            process.env.NODE_ENV ===
-            "production",
-
-          sameSite:
-            process.env.NODE_ENV ===
-            "production"
-              ? "none"
-              : "lax",
-        })
-        .send({
-          success: true,
-        });
-    });
-
-    // ======================================
-    // PRIVATE ROUTE
-    // ======================================
-
     app.get(
-      "/private",
-      verifyToken,
+      "/",
       async (req, res) => {
-        res.send({
-          success: true,
-          message:
-            "Private Route Access Success",
-        });
+
+        res.send(
+          "Server is running"
+        );
       }
     );
 
     // ======================================
-    // GET ALL CARS
+    // GOOGLE LOGIN
     // ======================================
 
-    app.get("/cars", async (req, res) => {
-      try {
-        const result =
-          await carsCollection
-            .find()
-            .toArray();
+    app.get(
+      "/auth/google",
 
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          message:
-            "Failed to fetch cars",
-        });
+      passport.authenticate(
+        "google",
+        {
+          scope: [
+            "profile",
+            "email",
+          ],
+        }
+      )
+    );
+
+    // ======================================
+    // GOOGLE CALLBACK
+    // ======================================
+
+    app.get(
+      "/auth/google/callback",
+
+      passport.authenticate(
+        "google",
+        {
+          failureRedirect:
+            "/login",
+
+          session: false,
+        }
+      ),
+
+      async (
+        req,
+        res
+      ) => {
+
+        const user =
+          req.user;
+
+        const token =
+          jwt.sign(
+            user,
+            process.env.JWT_SECRET,
+            {
+              expiresIn:
+                "7d",
+            }
+          );
+
+        res.redirect(
+          `${process.env.CLIENT_URL}/social-login?token=${token}`
+        );
       }
-    });
+    );
 
     // ======================================
     // FEATURED CARS
@@ -210,8 +310,14 @@ async function run() {
 
     app.get(
       "/featured-cars",
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const result =
             await carsCollection
               .aggregate([
@@ -223,8 +329,12 @@ async function run() {
               ])
               .toArray();
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to fetch featured cars",
@@ -234,26 +344,33 @@ async function run() {
     );
 
     // ======================================
-    // ADD CAR
+    // GET ALL CARS
     // ======================================
 
-    app.post(
-      "/add-car",
-      verifyToken,
-      async (req, res) => {
+    app.get(
+      "/cars",
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
-          const car = req.body;
 
           const result =
-            await carsCollection.insertOne(
-              car
-            );
+            await carsCollection
+              .find()
+              .toArray();
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
-              "Failed to add car",
+              "Failed to fetch cars",
           });
         }
       }
@@ -265,14 +382,22 @@ async function run() {
 
     app.get(
       "/cars/:id",
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const id =
             req.params.id;
 
           const query = {
             _id:
-              new ObjectId(id),
+              new ObjectId(
+                id
+              ),
           };
 
           const result =
@@ -280,11 +405,53 @@ async function run() {
               query
             );
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to fetch car details",
+          });
+        }
+      }
+    );
+
+    // ======================================
+    // ADD CAR
+    // ======================================
+
+    app.post(
+      "/add-car",
+
+      verifyToken,
+
+      async (
+        req,
+        res
+      ) => {
+
+        try {
+
+          const car =
+            req.body;
+
+          const result =
+            await carsCollection.insertOne(
+              car
+            );
+
+          res.send(
+            result
+          );
+
+        } catch (error) {
+
+          res.status(500).send({
+            message:
+              "Failed to add car",
           });
         }
       }
@@ -296,14 +463,22 @@ async function run() {
 
     app.get(
       "/my-cars/:email",
+
       verifyToken,
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const email =
             req.params.email;
 
           const query = {
-            userEmail: email,
+            userEmail:
+              email,
           };
 
           const result =
@@ -311,8 +486,12 @@ async function run() {
               .find(query)
               .toArray();
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to fetch my cars",
@@ -327,9 +506,16 @@ async function run() {
 
     app.put(
       "/update-car/:id",
+
       verifyToken,
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const id =
             req.params.id;
 
@@ -338,11 +524,14 @@ async function run() {
 
           const query = {
             _id:
-              new ObjectId(id),
+              new ObjectId(
+                id
+              ),
           };
 
           const updatedDoc = {
-            $set: updatedData,
+            $set:
+              updatedData,
           };
 
           const result =
@@ -351,8 +540,12 @@ async function run() {
               updatedDoc
             );
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to update car",
@@ -367,15 +560,24 @@ async function run() {
 
     app.delete(
       "/delete-car/:id",
+
       verifyToken,
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const id =
             req.params.id;
 
           const query = {
             _id:
-              new ObjectId(id),
+              new ObjectId(
+                id
+              ),
           };
 
           const result =
@@ -383,8 +585,12 @@ async function run() {
               query
             );
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to delete car",
@@ -399,9 +605,16 @@ async function run() {
 
     app.post(
       "/bookings",
+
       verifyToken,
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const booking =
             req.body;
 
@@ -417,6 +630,7 @@ async function run() {
                   booking.carId
                 ),
             },
+
             {
               $inc: {
                 booking_count: 1,
@@ -424,8 +638,12 @@ async function run() {
             }
           );
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to book car",
@@ -440,14 +658,22 @@ async function run() {
 
     app.get(
       "/my-bookings/:email",
+
       verifyToken,
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const email =
             req.params.email;
 
           const query = {
-            userEmail: email,
+            userEmail:
+              email,
           };
 
           const result =
@@ -455,8 +681,12 @@ async function run() {
               .find(query)
               .toArray();
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to fetch bookings",
@@ -466,30 +696,44 @@ async function run() {
     );
 
     // ======================================
-    // SEARCH + FILTER CARS
+    // SEARCH CARS
     // ======================================
 
     app.get(
       "/search-cars",
-      async (req, res) => {
+
+      async (
+        req,
+        res
+      ) => {
+
         try {
+
           const search =
-            req.query.search || "";
+            req.query.search ||
+            "";
 
           const type =
-            req.query.type || "";
+            req.query.type ||
+            "";
 
           let query = {};
 
           if (search) {
+
             query.carName = {
-              $regex: search,
-              $options: "i",
+              $regex:
+                search,
+
+              $options:
+                "i",
             };
           }
 
           if (type) {
-            query.carType = type;
+
+            query.carType =
+              type;
           }
 
           const result =
@@ -497,8 +741,12 @@ async function run() {
               .find(query)
               .toArray();
 
-          res.send(result);
+          res.send(
+            result
+          );
+
         } catch (error) {
+
           res.status(500).send({
             message:
               "Failed to search cars",
@@ -506,7 +754,9 @@ async function run() {
         }
       }
     );
+
   } catch (error) {
+
     console.log(error);
   }
 }
@@ -517,10 +767,14 @@ run().catch(console.dir);
 // SERVER LISTEN
 // ======================================
 
-app.listen(port, () => {
-  console.log(
-    `Server running on port ${port}`
-  );
-});
+app.listen(
+  port,
+  () => {
+
+    console.log(
+      `Server running on port ${port}`
+    );
+  }
+);
 
 module.exports = app;
