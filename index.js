@@ -146,15 +146,15 @@ async function run() {
       });
     });
 
-    // app.all(
-    //   "/api/auth/*",
-    //   toNodeHandler(auth)
-    // );
-
-    app.use(
-      "/api/auth",
+    app.all(
+      "/api/auth/*",
       toNodeHandler(auth)
     );
+
+    // app.use(
+    //   "/api/auth",
+    //   toNodeHandler(auth)
+    // );
 
     // app.all("/api/auth/*", async (req, res) => {
     //   console.log("AUTH ROUTE HIT:", req.originalUrl);

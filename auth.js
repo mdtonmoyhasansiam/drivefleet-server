@@ -17,7 +17,7 @@ export const createAuth = (database) => {
 
     secret: process.env.BETTER_AUTH_SECRET,
 
-    baseURL: "https://drivefleet-server-zqxb.onrender.com",
+    baseURL:   process.env.BETTER_AUTH_URL,
 
     emailAndPassword: {
       enabled: true,
