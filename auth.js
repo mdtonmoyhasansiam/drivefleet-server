@@ -35,5 +35,12 @@ export const createAuth = (database) => {
       "http://localhost:3000",
       "https://drivefleet-rouge.vercel.app",
     ],
+
+    advanced: {
+    crossSubDomainCookies: {
+      enabled: false,
+    },
+  },
+  
   });
 };
