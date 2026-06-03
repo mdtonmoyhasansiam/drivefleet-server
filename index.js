@@ -151,10 +151,10 @@ async function run() {
     //   toNodeHandler(auth)
     // );
 
-    // app.use(
-    //   "/api/auth",
-    //   toNodeHandler(auth)
-    // );
+    app.use(
+      "/api/auth",
+      toNodeHandler(auth)
+    );
 
     // app.all("/api/auth/*", async (req, res) => {
     //   console.log("AUTH ROUTE HIT:", req.originalUrl);
@@ -164,10 +164,10 @@ async function run() {
     //   return handler(req, res);
     // });
 
-    app.all(
-      "/api/auth/*",
-      toNodeHandler(auth)
-    );
+    // app.all(
+    //   "/api/auth/*",
+    //   toNodeHandler(auth)
+    // );
 
     app.get("/check-auth", (req, res) => {
       res.send("CHECK AUTH OK");
