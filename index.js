@@ -1,28 +1,21 @@
-const express = require("express");
+import dotenv from "dotenv";
 
-const cors = require("cors");
+dotenv.config();
 
-const cookieParser =
-  require("cookie-parser");
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 
-const jwt = require("jsonwebtoken");
-
-const passport =
-  require("passport");
-
-const GoogleStrategy =
-  require("passport-google-oauth20").Strategy;
-
-const session =
-  require("express-session");
-
-const {
+import {
   MongoClient,
   ServerApiVersion,
   ObjectId,
-} = require("mongodb");
+} from "mongodb";
 
-require("dotenv").config();
+import { toNodeHandler } from "better-auth/node";
+
+import { createAuth } from "./auth.js";
 
 const app = express();
 
@@ -53,25 +46,6 @@ app.use(express.json());
 
 app.use(cookieParser());
 
-app.use(
-  session({
-    secret:
-      "drivefleet_secret",
-
-    resave: false,
-
-    saveUninitialized: true,
-  })
-);
-
-app.use(
-  passport.initialize()
-);
-
-app.use(
-  passport.session()
-);
-
 // ======================================
 // MONGODB URI
 // ======================================
@@ -94,68 +68,6 @@ const client =
       deprecationErrors: true,
     },
   });
-
-// ======================================
-// GOOGLE OAUTH
-// ======================================
-
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID:
-        process.env
-          .GOOGLE_CLIENT_ID,
-
-      clientSecret:
-        process.env
-          .GOOGLE_CLIENT_SECRET,
-
-      callbackURL:
-        process.env.NODE_ENV ===
-        "production"
-          ? "https://drivefleet-server-zqxb.onrender.com/auth/google/callback"
-          : "http://localhost:5000/auth/google/callback",
-    },
-
-    async (
-      accessToken,
-      refreshToken,
-      profile,
-      done
-    ) => {
-
-      const user = {
-        name:
-          profile.displayName,
-
-        email:
-          profile.emails[0]
-            .value,
-
-        image:
-          profile.photos[0]
-            .value,
-      };
-
-      return done(
-        null,
-        user
-      );
-    }
-  )
-);
-
-passport.serializeUser(
-  (user, done) => {
-    done(null, user);
-  }
-);
-
-passport.deserializeUser(
-  (user, done) => {
-    done(null, user);
-  }
-);
 
 // ======================================
 // JWT VERIFY
@@ -220,6 +132,83 @@ async function run() {
       client.db(
         "drivefleetDB"
       );
+
+    const auth =
+      createAuth(database);
+
+    // temporary debug route
+
+    app.get("/check-google", (req, res) => {
+      res.send({
+        clientId: !!process.env.GOOGLE_CLIENT_ID,
+        clientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        betterAuthUrl: process.env.BETTER_AUTH_URL,
+      });
+    });
+
+    // app.all(
+    //   "/api/auth/*",
+    //   toNodeHandler(auth)
+    // );
+
+    // app.use(
+    //   "/api/auth",
+    //   toNodeHandler(auth)
+    // );
+
+    // app.all("/api/auth/*", async (req, res) => {
+    //   console.log("AUTH ROUTE HIT:", req.originalUrl);
+
+    //   const handler = toNodeHandler(auth);
+
+    //   return handler(req, res);
+    // });
+
+    app.all(
+      "/api/auth/*",
+      toNodeHandler(auth)
+    );
+
+    app.get("/check-auth", (req, res) => {
+      res.send("CHECK AUTH OK");
+    });
+
+    app.get(
+      "/test-google",
+      async (req, res) => {
+        res.send("Google Route Test");
+      }
+    );
+
+    app.get(
+      "/test-auth",
+      (req, res) => {
+
+        res.send(
+          "Auth Route Loaded"
+        );
+      }
+    );
+
+    // app.all("/api/auth/*", async (req, res) => {
+    //   const handler =
+    //     toNodeHandler(auth);
+
+    //   return handler(req, res);
+    // });
+
+    // const database =
+    //   client.db(
+    //     "drivefleetDB"
+    //   );
+
+    // const auth =
+    //   createAuth(database);
+
+    // app.all(
+    //   "/api/auth/*",
+    //   toNodeHandler(auth)
+    // );
 
     const carsCollection =
       database.collection(
@@ -392,108 +381,108 @@ async function run() {
     // GOOGLE LOGIN
     // ======================================
 
-    app.get(
-      "/auth/google",
+    // app.get(
+    //   "/auth/google",
 
-      passport.authenticate(
-        "google",
-        {
-          scope: [
-            "profile",
-            "email",
-          ],
-        }
-      )
-    );
+    //   passport.authenticate(
+    //     "google",
+    //     {
+    //       scope: [
+    //         "profile",
+    //         "email",
+    //       ],
+    //     }
+    //   )
+    // );
 
     // ======================================
     // GOOGLE CALLBACK
     // ======================================
 
-    app.get(
-      "/auth/google/callback",
+    // app.get(
+    //   "/auth/google/callback",
 
-      passport.authenticate(
-        "google",
-        {
-          failureRedirect:
-            "/login",
+    //   passport.authenticate(
+    //     "google",
+    //     {
+    //       failureRedirect:
+    //         "/login",
 
-          session: false,
-        }
-      ),
+    //       session: false,
+    //     }
+    //   ),
 
-      async (
-        req,
-        res
-      ) => {
+    //   async (
+    //     req,
+    //     res
+    //   ) => {
 
-        try {
+    //     try {
 
-          const user =
-            req.user;
+    //       const user =
+    //         req.user;
 
-          // CHECK USER
+    //       // CHECK USER
 
-          const existingUser =
-            await usersCollection.findOne({
-              email:
-                user.email,
-            });
+    //       const existingUser =
+    //         await usersCollection.findOne({
+    //           email:
+    //             user.email,
+    //         });
 
-          // SAVE USER IF NOT EXISTS
+    //       // SAVE USER IF NOT EXISTS
 
-          if (!existingUser) {
+    //       if (!existingUser) {
 
-            await usersCollection.insertOne({
-              name:
-                user.name,
+    //         await usersCollection.insertOne({
+    //           name:
+    //             user.name,
 
-              email:
-                user.email,
+    //           email:
+    //             user.email,
 
-              photo:
-                user.image,
-            });
-          }
+    //           photo:
+    //             user.image,
+    //         });
+    //       }
 
-          // JWT TOKEN
+    //       // JWT TOKEN
 
-          const token =
-            jwt.sign(
-              {
-                email:
-                  user.email,
+    //       const token =
+    //         jwt.sign(
+    //           {
+    //             email:
+    //               user.email,
 
-                displayName:
-                  user.name,
+    //             displayName:
+    //               user.name,
 
-                photoURL:
-                  user.image,
-              },
+    //             photoURL:
+    //               user.image,
+    //           },
 
-              process.env.JWT_SECRET,
+    //           process.env.JWT_SECRET,
 
-              {
-                expiresIn:
-                  "7d",
-              }
-            );
+    //           {
+    //             expiresIn:
+    //               "7d",
+    //           }
+    //         );
 
-          res.redirect(
-            `${process.env.CLIENT_URL}/social-login?token=${token}`
-          );
+    //       res.redirect(
+    //         `${process.env.CLIENT_URL}/social-login?token=${token}`
+    //       );
 
-        } catch (error) {
+    //     } catch (error) {
 
-          console.log(error);
+    //       console.log(error);
 
-          res.redirect(
-            `${process.env.CLIENT_URL}/login`
-          );
-        }
-      }
-    );
+    //       res.redirect(
+    //         `${process.env.CLIENT_URL}/login`
+    //       );
+    //     }
+    //   }
+    // );
 
     // ======================================
     // FEATURED CARS
@@ -614,15 +603,20 @@ async function run() {
     // ADD CAR
     // ======================================
 
+    // app.post(
+    //   "/add-car",
+
+    //   verifyToken,
+
+    //   async (
+    //     req,
+    //     res
+    //   ) => {
+
     app.post(
       "/add-car",
 
-      verifyToken,
-
-      async (
-        req,
-        res
-      ) => {
+      async (req, res) => {
 
         try {
 
@@ -655,7 +649,7 @@ async function run() {
     app.get(
       "/my-cars/:email",
 
-      verifyToken,
+      // verifyToken,
 
       async (
         req,
@@ -667,16 +661,16 @@ async function run() {
           const email =
             req.params.email;
 
-          if (
-            req.decoded.email !==
-            email
-          ) {
+          // if (
+          //   req.decoded.email !==
+          //   email
+          // ) {
 
-            return res.status(403).send({
-              message:
-                "Forbidden Access",
-            });
-          }
+          //   return res.status(403).send({
+          //     message:
+          //       "Forbidden Access",
+          //   });
+          // }
 
           const query = {
             userEmail:
@@ -694,6 +688,8 @@ async function run() {
 
         } catch (error) {
 
+          console.log(error);
+
           res.status(500).send({
             message:
               "Failed to fetch my cars",
@@ -709,7 +705,7 @@ async function run() {
     app.put(
       "/update-car/:id",
 
-      verifyToken,
+      // verifyToken,
 
       async (
         req,
@@ -763,7 +759,7 @@ async function run() {
     app.delete(
       "/delete-car/:id",
 
-      verifyToken,
+      // verifyToken,
 
       async (
         req,
@@ -805,15 +801,20 @@ async function run() {
     // BOOK CAR
     // ======================================
 
+    // app.post(
+    //   "/bookings",
+
+    //   verifyToken,
+
+    //   async (
+    //     req,
+    //     res
+    //   ) => {
+
     app.post(
       "/bookings",
 
-      verifyToken,
-
-      async (
-        req,
-        res
-      ) => {
+      async (req, res) => {
 
         try {
 
@@ -861,7 +862,7 @@ async function run() {
     app.get(
       "/my-bookings/:email",
 
-      verifyToken,
+      // verifyToken,
 
       async (
         req,
@@ -873,16 +874,16 @@ async function run() {
           const email =
             req.params.email;
 
-          if (
-            req.decoded.email !==
-            email
-          ) {
+          // if (
+          //   req.decoded.email !==
+          //   email
+          // ) {
 
-            return res.status(403).send({
-              message:
-                "Forbidden Access",
-            });
-          }
+          //   return res.status(403).send({
+          //     message:
+          //       "Forbidden Access",
+          //   });
+          // }
 
           const query = {
             userEmail:
@@ -899,6 +900,8 @@ async function run() {
           );
 
         } catch (error) {
+
+          console.log(error);
 
           res.status(500).send({
             message:
@@ -989,5 +992,3 @@ app.listen(
     );
   }
 );
-
-module.exports = app;
