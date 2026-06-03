@@ -17,7 +17,13 @@ export const createAuth = (database) => {
 
     secret: process.env.BETTER_AUTH_SECRET,
 
-    baseURL:   process.env.BETTER_AUTH_URL,
+    baseURL: process.env.BETTER_AUTH_URL,
+
+
+    // Test 
+    account: {
+      skipStateCookieCheck: true,
+    },
 
     emailAndPassword: {
       enabled: true,
