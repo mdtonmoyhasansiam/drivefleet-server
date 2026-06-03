@@ -19,8 +19,16 @@ export const createAuth = (database) => {
 
     baseURL: process.env.BETTER_AUTH_URL,
 
+    advanced: {
+      useSecureCookies: true,
 
-    // Test 
+      defaultCookieAttributes: {
+        secure: true,
+        sameSite: "none",
+        partitioned: true,
+      },
+    },
+
     account: {
       skipStateCookieCheck: true,
     },
@@ -32,8 +40,7 @@ export const createAuth = (database) => {
     socialProviders: {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret:
-          process.env.GOOGLE_CLIENT_SECRET,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       },
     },
 
@@ -41,6 +48,5 @@ export const createAuth = (database) => {
       "http://localhost:3000",
       "https://drivefleet-rouge.vercel.app",
     ],
-
   });
 };
